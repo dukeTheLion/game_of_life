@@ -22,6 +22,8 @@ Informacoes adicionais:
 from random import random
 from PIL import Image
 import numpy as np
+import cv2 as cv
+import os
 
 
 class Cell:
@@ -59,7 +61,7 @@ class Grid:
     def __init__(self, column=1, line=1, weight=.8):
         self.__column = column if isinstance(column, int) and column > 0 else 1
         self.__line = line if isinstance(line, int) and line > 0 else 1
-        self.__weight = weight if 0 > weight > 1 else .8
+        self.__weight = weight if 0.0 < weight < 1.0 else .8
 
         # Gera uma matriz aleatoria com zeros e uns
         self.__mx = [[1 if random() > self.__weight else 0 for j in range(self.__column)] for i in range(self.__line)]
@@ -201,13 +203,28 @@ class World:
         return line
 
 
-class Gif:
-    def __init__(self, world, frame, size=(150, 150)):
-        self.__frame = frame if frame < 150 else 150
+class Img:
+    def __init__(self, world, frame=1, size=(150, 150)):
+        self.__frame = frame
         self.__world = world
         self.__size = size
 
-    def create(self):
+    def png(self):
+        if os.path.exists(os.getcwd() + '/temp'):
+            os.chdir(os.getcwd() + '/temp')
+        else:
+            os.mkdir(os.getcwd() + '/temp')
+
+        for time in range(self.__frame):
+            image = Image.fromarray(np.array(self.__world.get_img(), np.uint8))
+            image = image.resize(self.__size, Image.BOX)
+            image.save(f'img-{time}.png')
+
+            print(time)
+            self.__world.tick()
+
+    def gif(self):
+        self.__frame = self.__frame if self.__frame < 150 else 150
         im = []
 
         for time in range(self.__frame):
@@ -219,10 +236,25 @@ class Gif:
 
         im[0].save('new.gif', save_all=True, append_images=im[1:], optimize=False, duration=self.__frame, loop=0)
 
+    def cv2(self):
+        while True:
+            image = Image.fromarray(np.array(self.__world.get_img(), np.uint8))
+            image = image.convert('RGB')
+            image = image.resize(self.__size, Image.BOX)
+
+            cv.imshow('img', cv.cvtColor(np.array(image), cv.COLOR_RGB2BGR))
+
+            self.__world.tick()
+
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                break
+
 
 if __name__ == '__main__':
-    new = World(Grid(100, 100, .7))
+    grid = 80
 
-    gif = Gif(new, 100, (100, 100))
-    gif.create()
+    new = World(Grid(grid, grid, .8))
+
+    gif = Img(new, 500, (grid*3 if grid > 100 else grid*8, grid*3 if grid > 100 else grid*8))
+    gif.cv2()
 
